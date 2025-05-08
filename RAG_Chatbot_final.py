@@ -274,7 +274,7 @@ class RAGGeminiChatbot:
                 if not self.embeddings:
                     self._init_embeddings()
                 
-                self.vector_db = FAISS.load_local(self.db_path, self.embeddings)
+                self.vector_db = FAISS.load_local(self.db_path, self.embeddings, allow_dangerous_deserialization=True)
                 logger.info("Vector database loaded successfully")
                 return True
             except Exception as e:
@@ -515,7 +515,7 @@ class RAGGeminiChatbot:
 def main():
     """Main function to parse arguments and run the chatbot."""
     parser = argparse.ArgumentParser(description="RAG Gemini Chatbot for Company Documentation")
-    parser.add_argument("--docs-dir", type=str,  default="Y:\\projects\\Qayedeny\\company_docs", help="Directory containing company documentation")
+    parser.add_argument("--docs-dir", type=str,  default="Y:\\projects\\Qayedeny\\Rag_Chatbot\\company_docs", help="Directory containing company documentation")
     parser.add_argument("--api-key", type=str,default="AIzaSyAIyjr7r5oelBH-vKA4DgU9eAx1xutCmpc" ,help="Google API key for Gemini (or set GOOGLE_API_KEY env var)")
     parser.add_argument("--model", type=str, default="models/gemini-2.0-flash", help="Gemini model name")
     parser.add_argument("--temperature", type=float, default=0.2, help="Temperature for generation")
@@ -542,9 +542,7 @@ def main():
     )
     
     # Load or create vector database
-    db_loaded = False
-    if not args.force_reload:
-        db_loaded = chatbot.load_existing_db()
+    db_loaded = chatbot.load_existing_db()
     
     if not db_loaded:
         success = chatbot.load_documents()
