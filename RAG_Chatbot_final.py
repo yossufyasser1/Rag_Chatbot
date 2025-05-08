@@ -69,7 +69,7 @@ class RAGGeminiChatbot:
         max_output_tokens: int = 2048,
         top_k: int = 40,
         top_p: float = 0.95,
-        cache_dir: str = ".cache",
+        cache_dir: str = "vector_db",
         conversation_log_dir: str = "conversation_logs"
     ):
         """
@@ -103,7 +103,7 @@ class RAGGeminiChatbot:
         os.makedirs(self.conversation_log_dir, exist_ok=True)
         
         # DB paths
-        self.db_path = os.path.join(self.cache_dir, "vectordb")
+        self.db_path = os.path.join(self.cache_dir, "vector_db")
         
         # Initialize components
         self._init_genai()
@@ -520,7 +520,7 @@ def main():
     parser.add_argument("--model", type=str, default="models/gemini-2.0-flash", help="Gemini model name")
     parser.add_argument("--temperature", type=float, default=0.2, help="Temperature for generation")
     parser.add_argument("--force-reload", action="store_true", help="Force reload documents even if DB exists")
-    parser.add_argument("--cache-dir", type=str, default=".cache", help="Directory to store the vector database")
+    parser.add_argument("--cache-dir", type=str, default="vector_db", help="Directory to store the vector database")
     parser.add_argument("--log-dir", type=str, default="conversation_logs", help="Directory to store conversation logs")
     
     args = parser.parse_args()
