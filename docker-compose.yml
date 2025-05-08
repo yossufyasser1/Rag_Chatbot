@@ -5,8 +5,8 @@ services:
     build:
       context: .
       args:
-        - GITHUB_DOCS_REPO=https://github.com/yourusername/company-docs.git
-        - GITHUB_TOKEN=${GITHUB_TOKEN}  # Optional: for private repositories
+        - GITHUB_DOCS_REPO=${GITHUB_DOCS_REPO}
+        - GITHUB_TOKEN=${GITHUB_TOKEN}  # For private repositories
     ports:
       - "8080:8080"
     environment:
