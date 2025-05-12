@@ -1,34 +1,30 @@
-# Use an official Python runtime as a parent image
+# Use Python 3.9 base image
 FROM python:3.9-slim
 
 # Set working directory
 WORKDIR /app
 
-# Install git and required system dependencies
+# Install system dependencies
 RUN apt-get update && apt-get install -y git && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Clone the repository (replace with your GitHub repo URL)
+# Clone your repository (or copy source code)
 RUN git clone https://github.com/yossufyasser1/Rag_Chatbot.git .
 
-# Remove the company_docs directory if it exists (you mentioned you don't need it)
+# Remove unnecessary folders
 RUN rm -rf company_docs
 
-# Create directories for vector_db and conversation_logs
+# Create persistent data directories
 RUN mkdir -p vector_db conversation_logs
 
-# Install Python dependencies
-RUN pip install --no-cache-dir langchain langchain-community faiss-cpu google-generativeai \
-    pypdf docx2txt "unstructured[md]" flask flask-cors
+# Install dependencies from requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy your existing vector_db (you'll need to handle this when setting up the container)
-# This will be done via volume mounting when running the container
-
-# Expose port 8080
-EXPOSE 8080
-
-# Modify the Flask port in Rag_Endpoint.py to use port 8080 and listen on all interfaces
+# Modify Flask port in Rag_Endpoint.py to use 8080
 RUN sed -i 's/port = int(os.environ.get("PORT", 5000))/port = int(os.environ.get("PORT", 8080))/' Rag_Endpoint.py
 
-# Run the Flask application
+# Expose the Flask port
+EXPOSE 8080
+
+# Start the Flask app
 CMD ["python", "Rag_Endpoint.py"]
