@@ -69,7 +69,7 @@ class RAGGeminiChatbot:
         max_output_tokens: int = 2048,
         top_k: int = 40,
         top_p: float = 0.95,
-        cache_dir: str = "/app/vector_db",
+        cache_dir: str = "/home/abdelrahmanessamwork/vector_db/vector_db",
         conversation_log_dir: str = "conversation_logs"
     ):
         """
@@ -95,7 +95,7 @@ class RAGGeminiChatbot:
         self.top_p = top_p
         
         # Create cache directory if it doesn't exist
-        self.cache_dir = "/home/abdelrahmanessamwork/vector_db/vector_db"
+        self.cache_dir = os.path.abspath(cache_dir)
         os.makedirs(self.cache_dir, exist_ok=True)
         
         # Create logs directory if it doesn't exist
@@ -103,7 +103,7 @@ class RAGGeminiChatbot:
         os.makedirs(self.conversation_log_dir, exist_ok=True)
         
         # DB paths
-        self.db_path = os.path.join(self.cache_dir, "vector_db")
+        self.db_path = self.cache_dir
         
         # Initialize components
         self._init_genai()
