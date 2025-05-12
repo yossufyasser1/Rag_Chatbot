@@ -57,7 +57,7 @@ CACHE_DIR = os.environ.get("CACHE_DIR", "/app/vector_db")
 LOGS_DIR = os.environ.get("LOGS_DIR", "conversation_logs")
 
 # Ensure directories exist
-os.makedirs(CACHE_DIR, exist_ok=True)
+#os.makedirs(CACHE_DIR, exist_ok=True)
 os.makedirs(LOGS_DIR, exist_ok=True)
 
 # Dictionary to store user sessions
@@ -73,7 +73,7 @@ def initialize_chatbot():
             api_key=API_KEY,
             docs_dir=DOCS_DIR,
             model_name=MODEL_NAME,
-            cache_dir=CACHE_DIR,
+           # cache_dir=CACHE_DIR,
             conversation_log_dir=LOGS_DIR
         )
         
@@ -124,7 +124,7 @@ def start_session():
                 api_key=API_KEY,
                 docs_dir=DOCS_DIR,
                 model_name=MODEL_NAME,
-                cache_dir=CACHE_DIR,
+               # cache_dir=CACHE_DIR,
                 conversation_log_dir=LOGS_DIR
             )
             
