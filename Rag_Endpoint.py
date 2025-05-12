@@ -53,7 +53,7 @@ if not API_KEY:
 
 DOCS_DIR = os.environ.get("DOCS_DIR", "Y:/projects/Qayedeny/company_docs")
 MODEL_NAME = os.environ.get("MODEL_NAME", "models/gemini-2.0-flash")
-CACHE_DIR = os.environ.get("CACHE_DIR", ".cache")
+#CACHE_DIR = os.environ.get("CACHE_DIR", ".cache")
 LOGS_DIR = os.environ.get("LOGS_DIR", "conversation_logs")
 
 # Ensure directories exist
