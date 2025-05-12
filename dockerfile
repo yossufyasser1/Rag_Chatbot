@@ -15,7 +15,8 @@ RUN git clone https://github.com/yossufyasser1/Rag_Chatbot.git .
 RUN rm -rf company_docs
 
 # Create persistent data directories
-RUN mkdir -p vector_db conversation_logs
+RUN mkdir -p /app/vector_db /app/conversation_logs /app/logs /app/company_docs && \
+    chmod -R 777 /app/vector_db /app/conversation_logs /app/logs /app/company_docs
 
 # Install dependencies from requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
@@ -24,7 +25,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN sed -i 's/port = int(os.environ.get("PORT", 5000))/port = int(os.environ.get("PORT", 8080))/' Rag_Endpoint.py
 
 # Expose the Flask port
-EXPOSE 8080
+EXPOSE 8081
 
 # Start the Flask app
 CMD ["python", "Rag_Endpoint.py"]
