@@ -69,8 +69,8 @@ class RAGGeminiChatbot:
         max_output_tokens: int = 2048,
         top_k: int = 40,
         top_p: float = 0.95,
-        cache_dir: str = "/home/abdelrahmanessamwork/vector_db/vector_db",
-        conversation_log_dir: str = "conversation_logs"
+        cache_dir: str = "/app/vector_db",
+        conversation_log_dir: str = "/app/conversation_logs"
     ):
         """
         Initialize the RAG Gemini chatbot.
