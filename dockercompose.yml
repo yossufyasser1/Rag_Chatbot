@@ -1,0 +1,16 @@
+version: '3'
+
+services:
+  rag-chatbot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./vector_db:/app/vector_db
+      - ./conversation_logs:/app/conversation_logs
+    environment:
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      # If you need to override other environment variables, add them here
+    restart: unless-stopped

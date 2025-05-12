@@ -129,7 +129,7 @@ class RAGGeminiChatbot:
     
     def _init_genai(self) -> None:
         """Initialize Google Generative AI with API key."""
-        genai.configure(api_key="AIzaSyDFXt1BEwo10-K-GjuOl-ZmCucj6aQwHp4")
+        genai.configure(api_key=self.api_key)
         
         # Configure safety settings to be appropriate for customer service
         self.safety_settings = [
@@ -516,7 +516,7 @@ def main():
     """Main function to parse arguments and run the chatbot."""
     parser = argparse.ArgumentParser(description="RAG Gemini Chatbot for Company Documentation")
     parser.add_argument("--docs-dir", type=str,  default="Y:\\projects\\Qayedeny\\Rag_Chatbot\\company_docs", help="Directory containing company documentation")
-    parser.add_argument("--api-key", type=str,default="AIzaSyAIyjr7r5oelBH-vKA4DgU9eAx1xutCmpc" ,help="Google API key for Gemini (or set GOOGLE_API_KEY env var)")
+    parser.add_argument("--api-key", type=str,help="Google API key for Gemini (or set GOOGLE_API_KEY env var)")
     parser.add_argument("--model", type=str, default="models/gemini-2.0-flash", help="Gemini model name")
     parser.add_argument("--temperature", type=float, default=0.2, help="Temperature for generation")
     parser.add_argument("--force-reload", action="store_true", help="Force reload documents even if DB exists")

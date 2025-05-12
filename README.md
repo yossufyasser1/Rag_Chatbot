@@ -1,144 +1,94 @@
-# Deployment Guide: RAG Gemini Chatbot on Internet-Accessible VM
+# RAG Gemini Chatbot Docker Setup
 
-This guide explains how to deploy your RAG Gemini Chatbot on a Virtual Machine, making it accessible over the internet.
+This repository contains a Dockerized version of the RAG Gemini Chatbot for deployment on a VM with internet accessibility.
 
 ## Prerequisites
 
-- A Virtual Machine with internet access (e.g., AWS EC2, Google Compute Engine, Azure VM, DigitalOcean Droplet)
-- SSH access to your VM
-- A GitHub repository for storing your company documentation
-- A Google API key for Gemini
+- Docker and Docker Compose installed on your VM
+- Your Google API key for Gemini
+- Your vector_db directory (pre-built vector database)
 
-## Step 1: Prepare Your Documentation Repository
+## Setup Instructions
 
-1. Create a GitHub repository to store your company documentation (if you haven't already).
-2. Upload your PDF, DOCX, TXT, and MD files to this repository.
-3. Make sure the repository is either public or you have a GitHub Personal Access Token if it's private.
+### 1. Clone this repository
 
-## Step 2: Set Up the VM
-
-1. SSH into your VM:
-   ```
-   ssh username@your-vm-ip
-   ```
-
-2. Install Git:
-   ```
-   sudo apt-get update && sudo apt-get install -y git
-   ```
-
-3. Clone this repository:
-   ```
-   git clone https://github.com/YOUR_USERNAME/rag-chatbot.git
-   cd rag-chatbot
-   ```
-
-## Step 3: Deploy the Chatbot
-
-1. Make the setup script executable:
-   ```
-   chmod +x setup.sh
-   ```
-
-2. Run the setup script:
-   ```
-   ./setup.sh
-   ```
-
-3. Follow the prompts:
-   - Enter your Google API key
-   - Enter the GitHub repository URL containing your company documentation
-   - Indicate if it's a private repository and provide a GitHub token if needed
-
-The script will:
-- Install Docker and Docker Compose if not already installed
-- Configure the firewall to allow traffic on port 8080
-- Set up environment variables
-- Build and start the Docker container
-
-## Step 4: Test the Deployment
-
-The API endpoints will be accessible at:
-
-- Start a new chat session: 
-  ```
-  curl -X POST http://YOUR_VM_IP:8080/api/chat/start
-  ```
-
-- Send a message (replace SESSION_ID with the ID returned from the start endpoint):
-  ```
-  curl -X POST http://YOUR_VM_IP:8080/api/chat/SESSION_ID \
-      -H "Content-Type: application/json" \
-      -d '{"query": "What does your company offer?"}'
-  ```
-
-## Managing the Deployment
-
-### Update Documentation
-
-When you update your GitHub repository with new documentation:
-
-1. SSH into your VM
-2. Navigate to the project directory
-3. Rebuild the container:
-   ```
-   docker-compose down
-   docker-compose up --build -d
-   ```
-
-### View Logs
-
-To check the container logs:
-```
-docker-compose logs
+```bash
+git clone https://github.com/yourusername/rag-gemini-chatbot.git
+cd rag-gemini-chatbot
 ```
 
-To follow the logs in real-time:
+### 2. Create a GitHub repository for your code
+
+1. Create a new repository on GitHub
+2. Upload your RAG_Chatbot_final.py and Rag_Endpoint.py files to the repository
+3. Update the Dockerfile with your actual GitHub repository URL
+
+### 3. Prepare your VM
+
+1. Install Docker and Docker Compose on your VM
+2. Clone your GitHub repository to the VM
+3. Create a `.env` file with your Google API key:
+
+```bash
+echo "GOOGLE_API_KEY=your_api_key_here" > .env
 ```
-docker-compose logs -f
+
+### 4. Transfer your vector_db
+
+Transfer your vector_db directory to the VM. You can do this by:
+
+- Including it in your GitHub repository (if not too large)
+- Using SCP or SFTP to transfer it directly
+- Using a cloud storage service to download it to the VM
+
+Make sure to place the vector_db directory in the same location as your docker-compose.yml file.
+
+### 5. Build and run the container
+
+```bash
+docker-compose up -d
 ```
 
-### Backup Data
+This will:
+- Build the Docker image
+- Start the container
+- Map port 8080 to be accessible from outside
+- Mount your vector_db directory into the container
+- Set your Google API key as an environment variable
 
-The application stores conversation logs and vector database data in Docker volumes. To back them up:
+### 6. Accessing the API
 
-1. Create a backup directory:
-   ```
-   mkdir -p ~/backups
-   ```
+Your RAG Gemini Chatbot API will now be accessible at:
 
-2. Find the volume names:
-   ```
-   docker volume ls
-   ```
+```
+http://YOUR_VM_IP:8080/api/chat/start
+```
 
-3. Create a backup:
-   ```
-   docker run --rm -v rag-chatbot_vector_db_data:/data -v ~/backups:/backup alpine tar -czf /backup/vector_db_backup.tar.gz /data
-   docker run --rm -v rag-chatbot_conversation_logs:/data -v ~/backups:/backup alpine tar -czf /backup/conversation_logs_backup.tar.gz /data
-   ```
+## API Endpoints
 
-## Security Considerations
-
-1. **API Security**: This deployment does not include authentication. For production use, consider adding an API key system or OAuth.
-
-2. **HTTPS**: The current setup uses HTTP. For production, set up HTTPS using a reverse proxy like Nginx with Let's Encrypt.
-
-3. **Firewall**: The setup script opens port 8080. Ensure your VM's security group or network security settings also allow this port.
+- `POST /api/chat/start` - Start a new chat session
+- `POST /api/chat/<session_id>` - Send a message to an existing session
+- `GET /api/chat/<session_id>/history` - Get conversation history
+- `DELETE /api/chat/<session_id>` - End a chat session
+- `GET /health` - Check if the service is running
 
 ## Troubleshooting
 
-1. **Container not starting**:
-   ```
-   docker-compose logs
-   ```
+If you encounter any issues:
 
-2. **API not accessible**:
-   - Check if port 8080 is open: `sudo ufw status` or `sudo firewall-cmd --list-all`
-   - Verify the container is running: `docker ps`
+1. Check the container logs:
+```bash
+docker-compose logs
+```
 
-3. **Document processing issues**:
-   - Check if the repository was cloned correctly: `ls -la /app/company_docs` inside the container
-   - Review logs for document loading errors
+2. Make sure your VM's firewall allows incoming connections on port 8080
 
-For any other issues, feel free to check the container logs or contact support.
+3. Verify your vector_db directory is properly mounted by checking:
+```bash
+docker-compose exec rag-chatbot ls -la /app/vector_db
+```
+
+4. Test the API locally on the VM to rule out network connectivity issues:
+```bash
+curl -X POST http://localhost:8080/api/chat/start
+```

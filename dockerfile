@@ -1,54 +1,34 @@
-# Base image with Python 3.10
-FROM python:3.10-slim
+# Use an official Python runtime as a parent image
+FROM python:3.9-slim
 
 # Set working directory
 WORKDIR /app
 
-# Environment variables
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PORT=8080 \
-    HOST=0.0.0.0 \
-    DOCS_DIR=/app/company_docs \
-    CACHE_DIR=/app/vector_db \
-    LOGS_DIR=/app/conversation_logs
+# Install git and required system dependencies
+RUN apt-get update && apt-get install -y git && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install git and other dependencies
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends git && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# Clone the repository (replace with your GitHub repo URL)
+RUN git clone https://github.com/yossufyasser1/Rag_Chatbot.git .
 
-# Copy requirements file
-COPY requirements.txt .
+# Remove the company_docs directory if it exists (you mentioned you don't need it)
+RUN rm -rf company_docs
+
+# Create directories for vector_db and conversation_logs
+RUN mkdir -p vector_db conversation_logs
 
 # Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir langchain langchain-community faiss-cpu google-generativeai \
+    pypdf docx2txt "unstructured[md]" flask flask-cors
 
-# Create necessary directories
-RUN mkdir -p ${DOCS_DIR} ${CACHE_DIR} ${LOGS_DIR}
+# Copy your existing vector_db (you'll need to handle this when setting up the container)
+# This will be done via volume mounting when running the container
 
-# Clone the repository for company documents
-# Will be passed in at build time 
-ARG GITHUB_DOCS_REPO
-ARG GITHUB_TOKEN=""
-
-# Clone company docs repo (handles both public and private repos)
-RUN if [ -z "$GITHUB_TOKEN" ]; then \
-        if [ ! -z "$GITHUB_DOCS_REPO" ]; then \
-            git clone ${GITHUB_DOCS_REPO} ${DOCS_DIR}; \
-        fi; \
-    else \
-        if [ ! -z "$GITHUB_DOCS_REPO" ]; then \
-            git clone https://${GITHUB_TOKEN}@github.com/${GITHUB_DOCS_REPO#https://github.com/} ${DOCS_DIR}; \
-        fi; \
-    fi
-
-# Copy application code
-COPY RAG_Chatbot_final.py Rag_Endpoint.py ./
-
-# Expose the port
+# Expose port 8080
 EXPOSE 8080
 
-# Command to run the application
+# Modify the Flask port in Rag_Endpoint.py to use port 8080 and listen on all interfaces
+RUN sed -i 's/port = int(os.environ.get("PORT", 5000))/port = int(os.environ.get("PORT", 8080))/' Rag_Endpoint.py
+
+# Run the Flask application
 CMD ["python", "Rag_Endpoint.py"]
