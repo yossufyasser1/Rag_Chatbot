@@ -95,7 +95,7 @@ class RAGGeminiChatbot:
         self.top_p = top_p
         
         # Create cache directory if it doesn't exist
-        self.cache_dir = cache_dir
+        self.cache_dir = "/home/abdelrahmanessamwork/vector_db/vector_db"
         os.makedirs(self.cache_dir, exist_ok=True)
         
         # Create logs directory if it doesn't exist
