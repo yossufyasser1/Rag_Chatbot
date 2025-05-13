@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  rag-chatbot:
+    image: yossufyasser/rag-gemini-chatbot:v6
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./vector_db:/app/vector_db
+      - ./conversation_logs:/app/conversation_logs
+    environment:
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      # Ensure consistent line endings
+      - TERM=xterm-256color
+    restart: unless-stopped
+    command: bash -c " find /app -type f -name '*.py' -exec dos2unix {} \; && python Rag_Endpoint.py"

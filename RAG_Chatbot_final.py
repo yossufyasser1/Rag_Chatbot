@@ -69,8 +69,8 @@ class RAGGeminiChatbot:
         max_output_tokens: int = 2048,
         top_k: int = 40,
         top_p: float = 0.95,
-        cache_dir: str = "/app/vector_db",
-        conversation_log_dir: str = "/app/conversation_logs"
+        cache_dir: str = "Y:\\projects\\Qayedeny\\Rag_Chatbot\\vector_db\\vector_db",
+        conversation_log_dir: str = "Y:\\projects\\Qayedeny\\Rag_Chatbot\\conversation_logs"
     ):
         """
         Initialize the RAG Gemini chatbot.
@@ -341,6 +341,7 @@ class RAGGeminiChatbot:
         {query}
         
         Important guidelines:
+        - you cant say somthing like "ased on the documentation you provided"
         - Be conversational and maintain context from previous messages
         - Address the user by name if they've provided it earlier in the conversation
         - Never say you "don't have memory" or "as an AI" - you're representing the company
@@ -516,7 +517,7 @@ def main():
     """Main function to parse arguments and run the chatbot."""
     parser = argparse.ArgumentParser(description="RAG Gemini Chatbot for Company Documentation")
     parser.add_argument("--docs-dir", type=str,  default="Y:\\projects\\Qayedeny\\Rag_Chatbot\\company_docs", help="Directory containing company documentation")
-    parser.add_argument("--api-key", type=str,help="Google API key for Gemini (or set GOOGLE_API_KEY env var)")
+    parser.add_argument("--api-key", type=str,default = "AIzaSyBHbdtJHYY3W04KZbwcF5HUpHAk4Zczm60",help="Google API key for Gemini (or set GOOGLE_API_KEY env var)")
     parser.add_argument("--model", type=str, default="models/gemini-2.0-flash", help="Gemini model name")
     parser.add_argument("--temperature", type=float, default=0.2, help="Temperature for generation")
     parser.add_argument("--force-reload", action="store_true", help="Force reload documents even if DB exists")
