@@ -339,19 +339,10 @@ def signal_handler(sig, frame):
     logger.info("All conversation logs saved. Shutting down.")
     sys.exit(0)
 
-if __name__ == '__main__':
-    import signal
-    import sys
-    
-    # Register signal handlers for graceful shutdown
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
-    
-    # Start the cleanup thread
+if __name__ == "__main__":
+    # Start cleanup thread
     cleanup_thread = threading.Thread(target=cleanup_idle_sessions, daemon=True)
     cleanup_thread.start()
     
-    # Start the Flask application
-    port = int(os.environ.get("PORT", 5000))
-    logger.info(f"Starting Flask application on port {port}")
-    app.run(host='0.0.0.0', port=port, threaded=True)
+    # Run the Flask application
+    app.run(host='0.0.0.0', port=5000)

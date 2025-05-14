@@ -1,31 +1,27 @@
-# Use Python 3.9 base image
 FROM python:3.9-slim
 
-# Set working directory
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y git && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+# Copy requirements first to leverage Docker cache
+COPY requirements.txt .
 
-# Clone your repository (or copy source code)
-RUN git clone https://github.com/yossufyasser1/Rag_Chatbot.git .
-
-# Remove unnecessary folders
-RUN rm -rf company_docs
-
-# Create persistent data directories
-RUN mkdir -p /app/vector_db /app/conversation_logs /app/logs /app/company_docs && \
-    chmod -R 777 /app/vector_db /app/conversation_logs /app/logs /app/company_docs
-
-# Install dependencies from requirements.txt
+# Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Modify Flask port in Rag_Endpoint.py to use 8080
-RUN sed -i 's/port = int(os.environ.get("PORT", 5000))/port = int(os.environ.get("PORT", 8080))/' Rag_Endpoint.py
+# Copy the rest of the application
+COPY . .
 
-# Expose the Flask port
-EXPOSE 8081
+# Create necessary directories
+RUN mkdir -p vector_db conversation_logs
 
-# Start the Flask app
-CMD ["python", "Rag_Endpoint.py"]
+# Set environment variables
+ENV GOOGLE_API_KEY="your-api-key-here"
+ENV DOCS_DIR="/app/company_docs"
+ENV CACHE_DIR="/app/vector_db"
+ENV LOGS_DIR="/app/conversation_logs"
+
+# Expose the port the app runs on
+EXPOSE 5000
+
+# Command to run the application
+CMD ["python", "Rag_Endpoint.py"] 
