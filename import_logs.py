@@ -12,6 +12,7 @@ import glob
 import argparse
 import logging
 import sqlite3
+import threading
 from datetime import datetime
 
 # Configure logging
@@ -24,7 +25,7 @@ logger = logging.getLogger("import_logs")
 
 def create_database_structure(db_path):
     """Create database tables if they don't exist."""
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path, check_same_thread=False)
     cursor = conn.cursor()
     
     # Create conversations table

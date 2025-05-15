@@ -1,0 +1,13 @@
+version: '3'
+services:
+  rag-chatbot:
+    build: .
+    ports:
+      - "8081:5000"
+    volumes:
+      - ./vector_db:/app/vector_db
+      - ./conversations.db:/app/conversations.db
+      - ~/.ssh:/root/.ssh  # For GitHub SSH authentication
+    env_file:
+      - .env
+    restart: unless-stopped

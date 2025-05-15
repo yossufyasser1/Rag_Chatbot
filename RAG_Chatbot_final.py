@@ -34,6 +34,7 @@ import uuid
 from datetime import datetime
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from dotenv import load_dotenv
+import traceback
 
 # Import database utilities
 from db_utils import ConversationLogger
@@ -392,14 +393,22 @@ class RAGGeminiChatbot:
     def save_conversation_log(self) -> None:
         """End conversation in the database."""
         if self.use_db and self.conversation_id != -1:
-            # End the conversation in the database
-            success = self.db_logger.end_conversation(self.conversation_id)
-            if not success:
-                logger.warning("Failed to end conversation in database")
-            
-            # Close the database connection
-            self.db_logger.close()
-            logger.info("Conversation saved to database and connection closed")
+            try:
+                # Create a new ConversationLogger instance specifically for this thread
+                from db_utils import ConversationLogger
+                thread_db_logger = ConversationLogger(db_path=self.db_path)
+                
+                # End the conversation in the database using the thread-local connection
+                success = thread_db_logger.end_conversation(self.conversation_id)
+                if not success:
+                    logger.warning("Failed to end conversation in database")
+                
+                # Close the thread-local database connection
+                thread_db_logger.close()
+                logger.info("Conversation saved to database")
+            except Exception as e:
+                logger.error(f"Error in save_conversation_log: {e}")
+                logger.error(traceback.format_exc())
     
     def process_query(self, query: str) -> str:
         """

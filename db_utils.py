@@ -10,6 +10,7 @@ in SQLite database.
 import os
 import logging
 import sqlite3
+import threading
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from dotenv import load_dotenv
@@ -44,12 +45,14 @@ class ConversationLogger:
         )
         
         self.connection = None
+        self.lock = threading.Lock()  # Add lock for thread safety
         self._init_sqlite()
     
     def _init_sqlite(self) -> None:
         """Initialize SQLite connection and ensure tables exist."""
         try:
-            self.connection = sqlite3.connect(self.db_path)
+            # Use check_same_thread=False to allow using the connection across threads
+            self.connection = sqlite3.connect(self.db_path, check_same_thread=False)
             logger.info(f"Successfully connected to SQLite database at {self.db_path}")
             
             # Create tables if they don't exist
@@ -60,7 +63,7 @@ class ConversationLogger:
     
     def _create_tables(self) -> None:
         """Create necessary tables if they don't exist."""
-        with self.connection:
+        with self.lock:  # Use lock for thread-safety
             cursor = self.connection.cursor()
             
             # Create conversations table
@@ -92,6 +95,7 @@ class ConversationLogger:
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp)")
             
+            self.connection.commit()
             logger.info("Database tables created or already exist")
     
     def start_conversation(self, session_id: str) -> int:
@@ -107,12 +111,13 @@ class ConversationLogger:
         start_time = datetime.now()
         
         try:
-            with self.connection:
+            with self.lock:  # Use lock for thread-safety
                 cursor = self.connection.cursor()
                 cursor.execute(
                     "INSERT INTO conversations (session_id, start_time) VALUES (?, ?)",
                     (session_id, start_time)
                 )
+                self.connection.commit()
                 conversation_id = cursor.lastrowid
                 return conversation_id
         except Exception as e:
@@ -134,12 +139,13 @@ class ConversationLogger:
         timestamp = datetime.now()
         
         try:
-            with self.connection:
+            with self.lock:  # Use lock for thread-safety
                 cursor = self.connection.cursor()
                 cursor.execute(
                     "INSERT INTO messages (conversation_id, timestamp, role, content) VALUES (?, ?, ?, ?)",
                     (conversation_id, timestamp, role, content)
                 )
+                self.connection.commit()
                 return True
         except Exception as e:
             logger.error(f"Failed to log message: {e}")
@@ -158,12 +164,13 @@ class ConversationLogger:
         end_time = datetime.now()
         
         try:
-            with self.connection:
+            with self.lock:  # Use lock for thread-safety
                 cursor = self.connection.cursor()
                 cursor.execute(
                     "UPDATE conversations SET end_time = ? WHERE id = ?",
                     (end_time, conversation_id)
                 )
+                self.connection.commit()
                 return True
         except Exception as e:
             logger.error(f"Failed to end conversation: {e}")
@@ -180,30 +187,32 @@ class ConversationLogger:
             List of message dictionaries
         """
         try:
-            messages = []
-            cursor = self.connection.cursor()
-            cursor.execute(
-                "SELECT id, conversation_id, timestamp, role, content FROM messages WHERE conversation_id = ? ORDER BY timestamp",
-                (conversation_id,)
-            )
-            rows = cursor.fetchall()
-            
-            for row in rows:
-                messages.append({
-                    "id": row[0],
-                    "conversation_id": row[1],
-                    "timestamp": row[2],
-                    "role": row[3],
-                    "content": row[4]
-                })
-            
-            return messages
+            with self.lock:  # Use lock for thread-safety
+                messages = []
+                cursor = self.connection.cursor()
+                cursor.execute(
+                    "SELECT id, conversation_id, timestamp, role, content FROM messages WHERE conversation_id = ? ORDER BY timestamp",
+                    (conversation_id,)
+                )
+                rows = cursor.fetchall()
+                
+                for row in rows:
+                    messages.append({
+                        "id": row[0],
+                        "conversation_id": row[1],
+                        "timestamp": row[2],
+                        "role": row[3],
+                        "content": row[4]
+                    })
+                
+                return messages
         except Exception as e:
             logger.error(f"Failed to get conversation history: {e}")
             return []
     
     def close(self) -> None:
         """Close database connection if open."""
-        if self.connection:
-            self.connection.close()
-            logger.info("Database connection closed") 
+        with self.lock:  # Use lock for thread-safety
+            if self.connection:
+                self.connection.close()
+                logger.info("Database connection closed") 
