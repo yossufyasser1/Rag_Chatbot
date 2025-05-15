@@ -59,7 +59,6 @@ logger = logging.getLogger("rag_gemini_chatbot")
 
 class RAGGeminiChatbot:
     """RAG chatbot using Gemini 2.0 for company documentation."""
-    
     def __init__(
         self, 
         api_key: str, 
@@ -69,8 +68,8 @@ class RAGGeminiChatbot:
         max_output_tokens: int = 2048,
         top_k: int = 40,
         top_p: float = 0.95,
-        cache_dir: str = "Y:\\projects\\Qayedeny\\Rag_Chatbot\\vector_db\\vector_db",
-        conversation_log_dir: str = "Y:\\projects\\Qayedeny\\Rag_Chatbot\\conversation_logs"
+        cache_dir: str = "Y:\\projects\\Qayedeny\\chatbot_cusror\\Rag_Chatbot\\vector_db",
+        conversation_log_dir: str = "Y:\\projects\\Qayedeny\\chatbot_cusror\\Rag_Chatbot\\conversation_logs"
     ):
         """
         Initialize the RAG Gemini chatbot.
@@ -352,32 +351,42 @@ class RAGGeminiChatbot:
         return prompt
     
     def update_conversation_history(self, role: str, content: str) -> None:
-        """Update conversation history and log the interaction."""
+        """
+        Update conversation history with new message.
+        
+        Args:
+            role: 'user' or 'assistant'
+            content: Message content
+        """
         self.conversation_history.append({"role": role, "content": content})
+        
+        # Also update the conversation log for saving
+        timestamp = datetime.now().isoformat()
+        self.conversation_log.append({
+            "timestamp": timestamp,
+            "role": role,
+            "content": content
+        })
     
     def save_conversation_log(self) -> None:
-        """Save the conversation log to a file for backup purposes."""
-        if not self.conversation_history:
-            return
-            
+        """Save conversation log to a file."""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = os.path.join(
-            self.conversation_log_dir,
+        log_file = os.path.join(
+            self.conversation_log_dir, 
             f"conversation_{self.session_id}_{timestamp}.json"
         )
         
-        with open(filename, 'w', encoding='utf-8') as f:
-            json.dump(self.conversation_history, f, indent=2, ensure_ascii=False)
-            
-        logger.info(f"Conversation log saved to: {filename}")
-
-    def get_conversation_history(self, limit: int = 10) -> List[Dict]:
-        """Retrieve recent conversation history from the database."""
-        return self.conversation_history[-limit:]
-
-    def search_conversation_history(self, search_term: str, limit: int = 10) -> List[Dict]:
-        """Search through conversation history for specific terms."""
-        return [msg for msg in self.conversation_history if search_term.lower() in msg["content"].lower()]
+        try:
+            with open(log_file, 'w') as f:
+                json.dump({
+                    "session_id": self.session_id,
+                    "start_time": self.conversation_log[0]["timestamp"] if self.conversation_log else timestamp,
+                    "end_time": timestamp,
+                    "messages": self.conversation_log
+                }, f, indent=2)
+            logger.info(f"Conversation log saved to {log_file}")
+        except Exception as e:
+            logger.error(f"Error saving conversation log: {e}")
     
     def process_query(self, query: str) -> str:
         """
@@ -506,7 +515,7 @@ class RAGGeminiChatbot:
 def main():
     """Main function to parse arguments and run the chatbot."""
     parser = argparse.ArgumentParser(description="RAG Gemini Chatbot for Company Documentation")
-    parser.add_argument("--docs-dir", type=str, help="Directory containing company documentation")
+    parser.add_argument("--docs-dir", type=str,  default="Y:\\projects\\Qayedeny\\Rag_Chatbot\\company_docs", help="Directory containing company documentation")
     parser.add_argument("--api-key", type=str,default = "AIzaSyBHbdtJHYY3W04KZbwcF5HUpHAk4Zczm60",help="Google API key for Gemini (or set GOOGLE_API_KEY env var)")
     parser.add_argument("--model", type=str, default="models/gemini-2.0-flash", help="Gemini model name")
     parser.add_argument("--temperature", type=float, default=0.2, help="Temperature for generation")
