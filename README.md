@@ -15,7 +15,7 @@ This repository contains a Dockerized version of the RAG Gemini Chatbot for depl
 ### 1. Clone this repository
 
 ```bash
-git clone https://github.com/yourusername/rag-gemini-chatbot.git
+git clone https://github.com/yossufyasser1/Rag_Chatbot.git
 cd rag-gemini-chatbot
 ```
 
