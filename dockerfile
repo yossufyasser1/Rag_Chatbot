@@ -34,8 +34,8 @@ ENV GIT_USER_EMAIL="chatbot@example.com"
 ENV GIT_REPO_URL=""
 ENV GIT_SYNC_INTERVAL_MINUTES="60"
 
-# Create volumes for persistent storage
-VOLUME ["/app/conversations.db", "/app/vector_db"]
+# Create volume for persistent storage (only for vector_db, not for the database file)
+VOLUME ["/app/vector_db"]
 
 # Add sync script
 RUN echo '#!/bin/bash\n\
