@@ -11,3 +11,4 @@ venv/
 .DS_Store
 vector_db/*
 conversation_logs/* 
+conversations.db
