@@ -11,12 +11,14 @@ Requirements:
 - Python 3.8+
 - Google API key for Gemini
 - Company documentation (PDF, DOCX, TXT files)
+- SQLite database for conversation logging
 
 Features:
 - Document ingestion and chunking
 - Vector embeddings for efficient retrieval
 - Conversation history maintenance
 - Natural language responses with context from documentation
+- Conversation logging to SQLite database
 """
 
 import os
@@ -31,6 +33,10 @@ from typing import List, Dict, Any, Optional, Tuple
 import uuid
 from datetime import datetime
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from dotenv import load_dotenv
+
+# Import database utilities
+from db_utils import ConversationLogger
 
 # Third-party libraries
 try:
@@ -48,6 +54,9 @@ except ImportError as e:
     print(f"Error: Missing required libraries. Please install with: pip install langchain langchain-community faiss-cpu google-generativeai pypdf docx2txt unstructured markdown numpy")
     print(f"Specific error: {e}")
     sys.exit(1)
+
+# Load environment variables
+load_dotenv()
 
 # Configure logging
 logging.basicConfig(
@@ -68,8 +77,9 @@ class RAGGeminiChatbot:
         max_output_tokens: int = 2048,
         top_k: int = 40,
         top_p: float = 0.95,
-        cache_dir: str = "Y:\\projects\\Qayedeny\\chatbot_cusror\\Rag_Chatbot\\vector_db",
-        conversation_log_dir: str = "Y:\\projects\\Qayedeny\\chatbot_cusror\\Rag_Chatbot\\conversation_logs"
+        cache_dir: str = "Y:\\projects\\Qayedeny\\chatbot_cusror\\Rag_Chatbot\\Rag-chatbot-with-supabase\\vector_db",
+        use_db: bool = True,
+        db_path: Optional[str] = None
     ):
         """
         Initialize the RAG Gemini chatbot.
@@ -83,7 +93,8 @@ class RAGGeminiChatbot:
             top_k: Number of highest probability tokens to consider
             top_p: Total probability mass of tokens to consider
             cache_dir: Directory to store vector database
-            conversation_log_dir: Directory to store conversation logs
+            use_db: Whether to use database for conversation logs
+            db_path: Path to SQLite database file
         """
         self.api_key = api_key
         self.docs_dir = os.path.abspath(docs_dir)
@@ -97,12 +108,9 @@ class RAGGeminiChatbot:
         self.cache_dir = os.path.abspath(cache_dir)
         os.makedirs(self.cache_dir, exist_ok=True)
         
-        # Create logs directory if it doesn't exist
-        self.conversation_log_dir = os.path.abspath(conversation_log_dir)
-        os.makedirs(self.conversation_log_dir, exist_ok=True)
-        
-        # DB paths
-        self.db_path = self.cache_dir
+        # Database configuration
+        self.use_db = use_db
+        self.db_path = db_path or os.path.join(os.path.dirname(os.path.abspath(__file__)), "conversations.db")
         
         # Initialize components
         self._init_genai()
@@ -110,7 +118,22 @@ class RAGGeminiChatbot:
         self.vector_db = None
         self.embeddings = None
         self.session_id = str(uuid.uuid4())
-        self.conversation_log = []
+        
+        # Initialize database logger if using database
+        if self.use_db:
+            try:
+                self.db_logger = ConversationLogger(db_path=self.db_path)
+                self.conversation_id = self.db_logger.start_conversation(self.session_id)
+                if self.conversation_id == -1:
+                    logger.warning("Failed to start conversation in database. Exiting.")
+                    sys.exit(1)
+            except Exception as e:
+                logger.error(f"Error initializing database logger: {e}")
+                logger.error("Database is required for conversation logging. Exiting.")
+                sys.exit(1)
+        else:
+            logger.error("Database is required for conversation logging. Exiting.")
+            sys.exit(1)
         
         # System prompts
         self.system_prompt = """
@@ -254,8 +277,8 @@ class RAGGeminiChatbot:
         try:
             self.vector_db = FAISS.from_documents(chunks, self.embeddings)
             # Save for future use
-            self.vector_db.save_local(self.db_path)
-            logger.info(f"Vector database created and saved to {self.db_path}")
+            self.vector_db.save_local(self.cache_dir)
+            logger.info(f"Vector database created and saved to {self.cache_dir}")
             return True
         except Exception as e:
             logger.error(f"Error creating vector database: {e}")
@@ -266,14 +289,14 @@ class RAGGeminiChatbot:
         Load existing vector database if available.
         Returns True if successful, False otherwise.
         """
-        if os.path.exists(self.db_path):
-            logger.info(f"Loading existing vector database from {self.db_path}")
+        if os.path.exists(self.cache_dir):
+            logger.info(f"Loading existing vector database from {self.cache_dir}")
             try:
                 # Initialize embeddings if needed
                 if not self.embeddings:
                     self._init_embeddings()
                 
-                self.vector_db = FAISS.load_local(self.db_path, self.embeddings, allow_dangerous_deserialization=True)
+                self.vector_db = FAISS.load_local(self.cache_dir, self.embeddings, allow_dangerous_deserialization=True)
                 logger.info("Vector database loaded successfully")
                 return True
             except Exception as e:
@@ -360,33 +383,23 @@ class RAGGeminiChatbot:
         """
         self.conversation_history.append({"role": role, "content": content})
         
-        # Also update the conversation log for saving
-        timestamp = datetime.now().isoformat()
-        self.conversation_log.append({
-            "timestamp": timestamp,
-            "role": role,
-            "content": content
-        })
+        # Log the message to database
+        if self.use_db and self.conversation_id != -1:
+            success = self.db_logger.log_message(self.conversation_id, role, content)
+            if not success:
+                logger.warning("Failed to log message to database")
     
     def save_conversation_log(self) -> None:
-        """Save conversation log to a file."""
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        log_file = os.path.join(
-            self.conversation_log_dir, 
-            f"conversation_{self.session_id}_{timestamp}.json"
-        )
-        
-        try:
-            with open(log_file, 'w') as f:
-                json.dump({
-                    "session_id": self.session_id,
-                    "start_time": self.conversation_log[0]["timestamp"] if self.conversation_log else timestamp,
-                    "end_time": timestamp,
-                    "messages": self.conversation_log
-                }, f, indent=2)
-            logger.info(f"Conversation log saved to {log_file}")
-        except Exception as e:
-            logger.error(f"Error saving conversation log: {e}")
+        """End conversation in the database."""
+        if self.use_db and self.conversation_id != -1:
+            # End the conversation in the database
+            success = self.db_logger.end_conversation(self.conversation_id)
+            if not success:
+                logger.warning("Failed to end conversation in database")
+            
+            # Close the database connection
+            self.db_logger.close()
+            logger.info("Conversation saved to database and connection closed")
     
     def process_query(self, query: str) -> str:
         """
@@ -515,13 +528,13 @@ class RAGGeminiChatbot:
 def main():
     """Main function to parse arguments and run the chatbot."""
     parser = argparse.ArgumentParser(description="RAG Gemini Chatbot for Company Documentation")
-    parser.add_argument("--docs-dir", type=str,  default="Y:\\projects\\Qayedeny\\Rag_Chatbot\\company_docs", help="Directory containing company documentation")
-    parser.add_argument("--api-key", type=str,default = "AIzaSyBHbdtJHYY3W04KZbwcF5HUpHAk4Zczm60",help="Google API key for Gemini (or set GOOGLE_API_KEY env var)")
+    parser.add_argument("--docs-dir", type=str, default="Y:\\projects\\Qayedeny\\chatbot_cusror\\Rag_Chatbot\\Rag-chatbot-with-supabase\\company_docs", help="Directory containing company documentation")
+    parser.add_argument("--api-key", type=str, default="AIzaSyBHbdtJHYY3W04KZbwcF5HUpHAk4Zczm60", help="Google API key for Gemini (or set GOOGLE_API_KEY env var)")
     parser.add_argument("--model", type=str, default="models/gemini-2.0-flash", help="Gemini model name")
     parser.add_argument("--temperature", type=float, default=0.2, help="Temperature for generation")
     parser.add_argument("--force-reload", action="store_true", help="Force reload documents even if DB exists")
     parser.add_argument("--cache-dir", type=str, default="vector_db", help="Directory to store the vector database")
-    parser.add_argument("--log-dir", type=str, default="conversation_logs", help="Directory to store conversation logs")
+    parser.add_argument("--db-path", type=str, help="Path to SQLite database file (default: ./conversations.db)")
     
     args = parser.parse_args()
     
@@ -538,16 +551,17 @@ def main():
         model_name=args.model,
         temperature=args.temperature,
         cache_dir=args.cache_dir,
-        conversation_log_dir=args.log_dir
+        use_db=True,  # Always use database
+        db_path=args.db_path
     )
     
     # Load or create vector database
     db_loaded = chatbot.load_existing_db()
     
-    if not db_loaded:
+    if not db_loaded or args.force_reload:
         success = chatbot.load_documents()
         if not success:
-            print("Error: Failed to load documents or create vector database. Please check the logs.")
+            print("Error: Failed to load documents. Please check the logs for details.")
             sys.exit(1)
     
     # Start chat loop

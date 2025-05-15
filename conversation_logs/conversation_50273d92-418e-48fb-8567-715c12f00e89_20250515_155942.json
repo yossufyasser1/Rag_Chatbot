@@ -1,0 +1,35 @@
+{
+  "session_id": "50273d92-418e-48fb-8567-715c12f00e89",
+  "start_time": "2025-05-15 15:58:38.596830",
+  "end_time": "2025-05-15 15:59:42.412616",
+  "messages": [
+    {
+      "id": 1,
+      "conversation_id": 5,
+      "timestamp": "2025-05-15 15:58:51.491615",
+      "role": "user",
+      "content": "i'm a startup"
+    },
+    {
+      "id": 2,
+      "conversation_id": 5,
+      "timestamp": "2025-05-15 15:58:54.356975",
+      "role": "assistant",
+      "content": "Hey there! So you're a startup, that's awesome! Qayedny can definitely help you out.\n\nThe biggest challenge for startups is usually funding, right? That's where our Time Points system comes in. We've replaced real money with Time Points on the platform, and the value of real money is greater than Time Points. This means you can get the talent and freelance projects you need for less!\n\nBasically, the whole platform runs on Time Points, which eliminates the cash flow problem that many startups face. You can use Time Points to access freelancers and build your team.\n"
+    },
+    {
+      "id": 3,
+      "conversation_id": 5,
+      "timestamp": "2025-05-15 15:59:24.463206",
+      "role": "user",
+      "content": "nice"
+    },
+    {
+      "id": 4,
+      "conversation_id": 5,
+      "timestamp": "2025-05-15 15:59:26.064932",
+      "role": "assistant",
+      "content": "Glad you think so! Besides the Time Points system, Qayedny also helps startups by connecting you with interns and freelancers. You can post projects on the platform and find the right talent to help you grow. We also offer services to help you find trainees.\n\nIs there anything specific you're looking for in terms of talent or projects? I can see if Qayedny has resources that would be a good fit for your startup's needs.\n"
+    }
+  ]
+}

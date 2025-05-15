@@ -12,6 +12,7 @@ Requirements:
 - Google API key for Gemini
 - Company documentation (PDF, DOCX, TXT files)
 - Flask and related dependencies
+- SQLite database for conversation logging
 """
 
 import os
@@ -25,9 +26,13 @@ from datetime import datetime, timedelta
 from typing import Dict, Any
 from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
+from dotenv import load_dotenv
 
 # Import the RAG Gemini Chatbot
 from RAG_Chatbot_final import RAGGeminiChatbot
+
+# Load environment variables
+load_dotenv()
 
 # Configure logging with more detailed information
 logging.basicConfig(
@@ -54,11 +59,12 @@ if not API_KEY:
 DOCS_DIR = os.environ.get("DOCS_DIR", "Y:/projects/Qayedeny/company_docs")
 MODEL_NAME = os.environ.get("MODEL_NAME", "models/gemini-2.0-flash")
 CACHE_DIR = os.environ.get("CACHE_DIR", "/app/vector_db")
-LOGS_DIR = os.environ.get("LOGS_DIR", "conversation_logs")
+
+# Database configuration
+DB_PATH = os.environ.get("DB_PATH", os.path.join(os.path.dirname(os.path.abspath(__file__)), "conversations.db"))
 
 # Ensure directories exist
-#os.makedirs(CACHE_DIR, exist_ok=True)
-os.makedirs(LOGS_DIR, exist_ok=True)
+os.makedirs(CACHE_DIR, exist_ok=True)
 
 # Dictionary to store user sessions
 sessions = {}
@@ -73,8 +79,9 @@ def initialize_chatbot():
             api_key=API_KEY,
             docs_dir=DOCS_DIR,
             model_name=MODEL_NAME,
-           # cache_dir=CACHE_DIR,
-            conversation_log_dir=LOGS_DIR
+            cache_dir=CACHE_DIR,
+            use_db=True,
+            db_path=DB_PATH
         )
         
         # Try to load existing DB first
@@ -124,8 +131,9 @@ def start_session():
                 api_key=API_KEY,
                 docs_dir=DOCS_DIR,
                 model_name=MODEL_NAME,
-               # cache_dir=CACHE_DIR,
-                conversation_log_dir=LOGS_DIR
+                cache_dir=CACHE_DIR,
+                use_db=True,
+                db_path=DB_PATH
             )
             
             # Share the vector database instance to avoid duplicating in memory
