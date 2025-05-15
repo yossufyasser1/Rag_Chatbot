@@ -57,5 +57,5 @@ done' > /app/sync_database.sh && chmod +x /app/sync_database.sh
 # Expose the port the app runs on
 EXPOSE 5000
 
-# Command to run the application with database sync
-CMD sh -c "if [ -n \"$GIT_REPO_URL\" ]; then /app/sync_database.sh & fi; python Rag_Endpoint.py" 
+# Command to run the application with database sync using Gunicorn for production
+CMD sh -c "if [ -n \"$GIT_REPO_URL\" ]; then /app/sync_database.sh & fi; gunicorn --bind 0.0.0.0:5000 --workers 4 --timeout 120 'Rag_Endpoint:app'" 
