@@ -2,12 +2,10 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
-# Install required system packages including SQLite and Git with improved error handling
+# Install required system packages with space optimization
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    build-essential \
     sqlite3 \
-    git \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

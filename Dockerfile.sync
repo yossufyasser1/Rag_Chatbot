@@ -11,14 +11,6 @@ ENV PYTHONFAULTHANDLER=1 \
 # Set the working directory
 WORKDIR /app
 
-# Install system dependencies with additional error handling
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    build-essential \
-    python3-dev \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
 # Copy requirements file and install dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
