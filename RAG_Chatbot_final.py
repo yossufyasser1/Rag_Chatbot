@@ -534,6 +534,81 @@ class RAGGeminiChatbot:
                 logger.error(f"Error in chat loop: {e}")
                 print("\nI apologize, but I encountered an unexpected error. Let's continue our conversation.")
         
+    def load_conversation_history(self, session_id: str) -> bool:
+        """
+        Load conversation history from the database for a given session.
+        
+        Args:
+            session_id: The session ID to load history for
+            
+        Returns:
+            bool: True if history was loaded successfully, False otherwise
+        """
+        try:
+            # Get conversation ID for this session
+            cursor = self.db_logger.connection.cursor()
+            cursor.execute(
+                "SELECT id FROM conversations WHERE session_id = ? ORDER BY created_at DESC LIMIT 1",
+                (session_id,)
+            )
+            result = cursor.fetchone()
+            
+            if not result:
+                logger.warning(f"No conversation found for session {session_id}")
+                return False
+            
+            conversation_id = result[0]
+            
+            # Get all messages for this conversation
+            cursor.execute(
+                """
+                SELECT role, content, timestamp 
+                FROM messages 
+                WHERE conversation_id = ? 
+                ORDER BY timestamp
+                """,
+                (conversation_id,)
+            )
+            messages = cursor.fetchall()
+            
+            if not messages:
+                logger.warning(f"No messages found for conversation {conversation_id}")
+                return False
+            
+            # Update session ID and conversation ID
+            self.session_id = session_id
+            self.conversation_id = conversation_id
+            
+            # Load messages into conversation history
+            self.conversation_history = [
+                {
+                    "role": role,
+                    "content": content,
+                    "timestamp": timestamp
+                }
+                for role, content, timestamp in messages
+            ]
+            
+            # Reinitialize chat session with history
+            self._init_genai()
+            
+            # Add messages to chat history
+            for msg in self.conversation_history:
+                if msg["role"] == "user":
+                    self.chat.send_message(msg["content"])
+                else:
+                    # For assistant messages, we need to simulate the response
+                    # This is a limitation of the Gemini API
+                    pass
+            
+            logger.info(f"Successfully loaded {len(messages)} messages for session {session_id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error loading conversation history: {e}")
+            logger.error(traceback.format_exc())
+            return False
+
 def main():
     """Main function to parse arguments and run the chatbot."""
     parser = argparse.ArgumentParser(description="RAG Gemini Chatbot for Company Documentation")
