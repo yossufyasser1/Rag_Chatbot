@@ -2,10 +2,13 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
-# Install required system packages including SQLite and Git
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Install required system packages including SQLite and Git with improved error handling
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    build-essential \
     sqlite3 \
     git \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first to leverage Docker cache
