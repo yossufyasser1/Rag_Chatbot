@@ -1,0 +1,39 @@
+FROM python:3.11-slim-bookworm
+
+# Set environment variables
+ENV PYTHONFAULTHANDLER=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONHASHSEED=random \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_DEFAULT_TIMEOUT=100
+
+# Set the working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+    gcc \
+    python3-dev \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements file and install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the sync API file
+COPY data_sync_api.py .
+
+# Copy database module
+COPY db_utils.py .
+
+# Create necessary directories
+RUN mkdir -p /app/conversation_logs
+
+# Expose the port
+EXPOSE 5001
+
+# Set the entrypoint
+CMD ["python", "data_sync_api.py"] 

@@ -8,7 +8,6 @@ This repository contains a Dockerized version of the RAG Gemini Chatbot for depl
 - Your Google API key for Gemini
 - Your vector_db directory (pre-built vector database)
 - SQLite database for conversation logging (automatically set up)
-- GitHub repository for database synchronization (optional)
 
 ## Setup Instructions
 
@@ -19,13 +18,7 @@ git clone https://github.com/yossufyasser1/Rag_Chatbot.git
 cd rag-gemini-chatbot
 ```
 
-### 2. Create a GitHub repository for your code
-
-1. Create a new repository on GitHub
-2. Upload your RAG_Chatbot_final.py and Rag_Endpoint.py files to the repository
-3. Update the Dockerfile with your actual GitHub repository URL
-
-### 3. Prepare your VM
+### 2. Prepare your VM
 
 1. Install Docker and Docker Compose on your VM
 2. Clone your GitHub repository to the VM
@@ -38,42 +31,11 @@ GOOGLE_API_KEY=your_api_key_here
 # Database Configuration
 DB_PATH=conversations.db
 
-# GitHub Sync Configuration (optional)
-GIT_REPO_URL=https://github.com/yourusername/your-repo.git
-GIT_USER_NAME="Chatbot Database Sync"
-GIT_USER_EMAIL="your-email@example.com"
-GIT_SYNC_INTERVAL_MINUTES=60
+# Data Sync API Configuration
+DATA_SYNC_PORT=5001
 ```
 
-### 4. Set up GitHub authentication
-
-For the database synchronization to work, you need to set up Git authentication:
-
-#### Option 1: SSH key (recommended)
-
-1. Generate an SSH key on your VM:
-   ```bash
-   ssh-keygen -t ed25519 -C "your-email@example.com"
-   ```
-
-2. Add the SSH key to your GitHub account:
-   - Display your public key: `cat ~/.ssh/id_ed25519.pub`
-   - Copy the output and add it to your GitHub SSH keys in settings
-
-3. Update your .env file to use the SSH URL:
-   ```
-   GIT_REPO_URL=git@github.com:yourusername/your-repo.git
-   ```
-
-#### Option 2: Personal Access Token
-
-1. Create a Personal Access Token on GitHub with repo permissions
-2. Use it in your git remote URL:
-   ```
-   GIT_REPO_URL=https://username:personal_access_token@github.com/yourusername/your-repo.git
-   ```
-
-### 5. Transfer your vector_db
+### 3. Transfer your vector_db
 
 Transfer your vector_db directory to the VM. You can do this by:
 
@@ -83,7 +45,7 @@ Transfer your vector_db directory to the VM. You can do this by:
 
 Make sure to place the vector_db directory in the same location as your docker-compose.yml file.
 
-### 6. SQLite Database Configuration
+### 4. SQLite Database Configuration
 
 The chatbot uses SQLite for storing conversation logs. The database will be automatically created when you run the chatbot. By default, it's stored in a file called `conversations.db` in the same directory as the chatbot.
 
@@ -95,9 +57,11 @@ python import_logs.py --logs-dir conversation_logs --db-path conversations.db
 
 After importing, you can safely remove the conversation_logs directory as it is no longer needed.
 
-### 7. Configure docker-compose.yml
+### 5. Configure docker-compose.yml
 
-Create a docker-compose.yml file:
+The docker-compose.yml file includes two services:
+- rag-chatbot: The main chatbot API service
+- data-sync-api: A service for external data synchronization
 
 ```yaml
 version: '3'
@@ -105,55 +69,85 @@ services:
   rag-chatbot:
     build: .
     ports:
-      - "8080:5000"
+      - "8081:5000"
     volumes:
       - ./vector_db:/app/vector_db
       - ./conversations.db:/app/conversations.db
-      - ~/.ssh:/root/.ssh  # For GitHub SSH authentication
     env_file:
       - .env
     restart: unless-stopped
+
+  data-sync-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.sync
+    ports:
+      - "8082:5001"
+    volumes:
+      - ./conversations.db:/app/conversations.db
+      - ./conversation_logs:/app/conversation_logs
+    env_file:
+      - .env
+    restart: unless-stopped
+    depends_on:
+      - rag-chatbot
 ```
 
-### 8. Build and run the container
+### 6. Build and run the container
 
 ```bash
 docker-compose up -d
 ```
 
 This will:
-- Build the Docker image
-- Start the container
-- Map port 8080 to be accessible from outside
-- Mount your vector_db directory into the container
-- Set up database synchronization with GitHub (if configured)
+- Build the Docker images for both services
+- Start the containers
+- Map ports 8081 and 8082 to be accessible from outside
+- Mount your vector_db directory and conversations.db into the containers
 - Set your configuration as environment variables
 
-### 9. Database Synchronization Process
+### 7. Data Sync API for External Analysis
 
-When configured properly, the container will:
-1. Run a background task that regularly checks for database changes
-2. Commit any changes to the conversations.db file to your Git repository
-3. Push the changes to GitHub at the interval specified in GIT_SYNC_INTERVAL_MINUTES
-4. Log sync activity to the container's stdout (viewable with `docker-compose logs`)
+The Data Sync API provides a way to synchronize conversation data with external systems for analysis. The API runs on a separate port (default: 8082) and provides several endpoints for accessing the database.
 
-This allows you to access your database from other locations by pulling the latest version from GitHub.
+To use the API for data analysis:
 
-### 10. Accessing the API
+1. Access the API at `http://YOUR_VM_IP:8082/api/sync/health` to verify it's running
+2. Use the provided endpoints to fetch data as needed
+3. For automated synchronization, use the example client script:
+
+```bash
+python data_sync_client_example.py --api-url http://YOUR_VM_IP:8082 --continuous
+```
+
+This client script demonstrates how to pull data from the API at regular intervals, tracking the last synchronization time to minimize data transfer.
+
+### 8. Accessing the API
 
 Your RAG Gemini Chatbot API will now be accessible at:
 
 ```
-http://YOUR_VM_IP:8080/api/chat/start
+http://YOUR_VM_IP:8081/api/chat/start
 ```
 
 ## API Endpoints
+
+### Main Chatbot API (Port 8081)
 
 - `POST /api/chat/start` - Start a new chat session
 - `POST /api/chat/<session_id>` - Send a message to an existing session
 - `GET /api/chat/<session_id>/history` - Get conversation history
 - `DELETE /api/chat/<session_id>` - End a chat session
 - `GET /health` - Check if the service is running
+
+### Data Sync API (Port 8082)
+
+- `GET /api/sync/health` - Health check for the Data Sync API
+- `GET /api/sync/conversations/recent` - Get recent conversations (with optional `hours` parameter)
+- `GET /api/sync/conversations/<conversation_id>/messages` - Get messages for a specific conversation
+- `GET /api/sync/delta` - Get changes since a specific time (with optional `since` parameter)
+- `GET /api/sync/export` - Export the entire database content
+- `GET /api/sync/statistics` - Get database statistics
 
 ## Additional Command-Line Options
 
@@ -182,6 +176,20 @@ The database contains the following tables:
   - `content`: The message content
   - `created_at`: When the record was created
 
+## Data Sync Client
+
+The `data_sync_client_example.py` script demonstrates how to use the Data Sync API to pull data for external analysis. It provides several options:
+
+```bash
+python data_sync_client_example.py --help
+```
+
+Options:
+- `--api-url URL` - Base URL of the Data Sync API (default: http://localhost:8082)
+- `--interval SECONDS` - Sync interval in seconds (default: 300)
+- `--continuous` - Run in continuous sync mode
+- `--stats` - Retrieve and display database statistics
+
 ## Troubleshooting
 
 If you encounter any issues:
@@ -191,35 +199,14 @@ If you encounter any issues:
 docker-compose logs
 ```
 
-2. Make sure your VM's firewall allows incoming connections on port 8080
+2. Make sure your VM's firewall allows incoming connections on ports 8081 and 8082
 
 3. Verify your vector_db directory is properly mounted by checking:
 ```bash
 docker-compose exec rag-chatbot ls -la /app/vector_db
 ```
 
-4. Test the API locally on the VM to rule out network connectivity issues:
+4. Test the Data Sync API connection:
 ```bash
-curl -X POST http://localhost:8080/api/chat/start
-```
-
-5. Check the SQLite database:
-```bash
-# List all conversations
-sqlite3 conversations.db "SELECT * FROM conversations"
-
-# Count messages in database
-sqlite3 conversations.db "SELECT COUNT(*) FROM messages"
-```
-
-6. Verify GitHub synchronization is working:
-```bash
-# Check sync script is running
-docker-compose exec rag-chatbot ps aux | grep sync_database
-
-# Check sync logs
-docker-compose logs | grep "Syncing database"
-
-# Manually trigger a sync from inside the container
-docker-compose exec rag-chatbot /app/sync_database.sh
+curl http://YOUR_VM_IP:8082/api/sync/health
 ```
