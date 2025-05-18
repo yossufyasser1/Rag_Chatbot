@@ -172,11 +172,37 @@ def chat(session_id):
         # Check if session exists
         with sessions_lock:
             if session_id not in sessions:
-                logger.warning(f"Session not found: {session_id}")
-                return jsonify({
-                    "error": "Session not found",
-                    "message": "Please start a new session"
-                }), 404
+                logger.info(f"Session {session_id} not found in memory, attempting to retrieve from database")
+                
+                # Create a new chatbot instance
+                new_chatbot = RAGGeminiChatbot(
+                    api_key=API_KEY,
+                    docs_dir=DOCS_DIR,
+                    model_name=MODEL_NAME,
+                    cache_dir=CACHE_DIR,
+                    use_db=True,
+                    db_path=DB_PATH
+                )
+                
+                # Share the vector database instance
+                new_chatbot.vector_db = master_chatbot.vector_db
+                new_chatbot.embeddings = master_chatbot.embeddings
+                
+                # Try to load conversation history from database
+                if new_chatbot.load_conversation_history(session_id):
+                    logger.info(f"Successfully loaded conversation history for session {session_id}")
+                    # Store session data
+                    sessions[session_id] = {
+                        "chatbot": new_chatbot,
+                        "created_at": str(datetime.now()),
+                        "last_active": str(datetime.now())
+                    }
+                else:
+                    logger.warning(f"Session {session_id} not found in database")
+                    return jsonify({
+                        "error": "Session not found",
+                        "message": "Please start a new session"
+                    }), 404
             
             # Get the chatbot instance for this session
             session = sessions[session_id]
