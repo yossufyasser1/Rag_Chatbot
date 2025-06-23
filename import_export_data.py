@@ -25,7 +25,7 @@ from datetime import datetime
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.WARNING,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger("import_export_data")
@@ -282,4 +282,4 @@ def main():
         raise
 
 if __name__ == "__main__":
-    main() 
+    main()

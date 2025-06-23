@@ -36,7 +36,7 @@ load_dotenv()
 
 # Configure logging with more detailed information
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.WARNING,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler("api_server.log"),
@@ -74,7 +74,6 @@ sessions_lock = threading.Lock()
 def initialize_chatbot():
     """Initialize and prepare the chatbot with documents."""
     try:
-        logger.info(f"Initializing master chatbot with API key length: {len(API_KEY) if API_KEY else 0}")
         chatbot = RAGGeminiChatbot(
             api_key=API_KEY,
             docs_dir=DOCS_DIR,
@@ -85,32 +84,23 @@ def initialize_chatbot():
         )
         
         # Try to load existing DB first
-        logger.info("Attempting to load existing vector database...")
         db_loaded = chatbot.load_existing_db()
         
         if not db_loaded:
-            logger.info("No existing database found. Creating new vector database from documents...")
             success = chatbot.load_documents()
             if not success:
-                logger.error("Failed to load documents or create vector database")
                 return None
-            logger.info("Successfully created new vector database")
         else:
-            logger.info("Successfully loaded existing vector database")
+            pass
         
         return chatbot
     except Exception as e:
-        logger.error(f"Error initializing chatbot: {str(e)}")
-        logger.error(traceback.format_exc())
         return None
 
 # Initialize the shared vector database (only once)
-logger.info("Starting server, initializing master chatbot...")
 master_chatbot = initialize_chatbot()
 if not master_chatbot:
-    logger.error("Failed to initialize chatbot. Exiting.")
     exit(1)
-logger.info("Master chatbot initialized successfully")
 
 @app.route('/health')
 def health_check():
@@ -122,21 +112,19 @@ def start_session():
     try:
         # Generate a unique session ID
         session_id = str(uuid.uuid4())
-        logger.info(f"Creating new session: {session_id}")
         
-        # Create a new chatbot instance for this session
-        # Note: We're reusing the vector database from the master instance
-        with sessions_lock:
-            new_chatbot = RAGGeminiChatbot(
-                api_key=API_KEY,
-                docs_dir=DOCS_DIR,
-                model_name=MODEL_NAME,
-                cache_dir=CACHE_DIR,
-                use_db=True,
-                db_path=DB_PATH
-            )
-            
-            # Share the vector database instance to avoid duplicating in memory
+        # Create new chatbot for this session
+        new_chatbot = RAGGeminiChatbot(
+            api_key=API_KEY,
+            docs_dir=DOCS_DIR,
+            model_name=MODEL_NAME,
+            cache_dir=CACHE_DIR,
+            use_db=True,
+            db_path=DB_PATH
+        )
+        
+        # Copy vector database and embeddings from master
+        if master_chatbot and master_chatbot.vector_db and master_chatbot.embeddings:
             new_chatbot.vector_db = master_chatbot.vector_db
             new_chatbot.embeddings = master_chatbot.embeddings
             
@@ -147,12 +135,10 @@ def start_session():
                 "last_active": str(datetime.now())
             }
             
-            logger.info(f"Session {session_id} created successfully")
-        
-        return jsonify({
-            "session_id": session_id,
-            "message": "Chat session started successfully"
-        }), 201
+            return jsonify({
+                "session_id": session_id,
+                "message": "Chat session started successfully"
+            }), 201
     
     except Exception as e:
         error_details = traceback.format_exc()
@@ -167,14 +153,10 @@ def start_session():
 def chat(session_id):
     """Process a chat message."""
     try:
-        logger.info(f"Received chat request for session: {session_id}")
-        
-        # Check if session exists
+        # Check if session exists in memory
         with sessions_lock:
             if session_id not in sessions:
-                logger.info(f"Session {session_id} not found in memory, attempting to retrieve from database")
-                
-                # Create a new chatbot instance
+                # Create new chatbot instance for this session
                 new_chatbot = RAGGeminiChatbot(
                     api_key=API_KEY,
                     docs_dir=DOCS_DIR,
@@ -184,32 +166,41 @@ def chat(session_id):
                     db_path=DB_PATH
                 )
                 
-                # Share the vector database instance
-                new_chatbot.vector_db = master_chatbot.vector_db
-                new_chatbot.embeddings = master_chatbot.embeddings
-                
-                # Try to load conversation history from database
-                if new_chatbot.load_conversation_history(session_id):
-                    logger.info(f"Successfully loaded conversation history for session {session_id}")
-                    # Store session data
-                    sessions[session_id] = {
-                        "chatbot": new_chatbot,
-                        "created_at": str(datetime.now()),
-                        "last_active": str(datetime.now())
-                    }
+                # Copy vector database and embeddings from master
+                if master_chatbot and master_chatbot.vector_db and master_chatbot.embeddings:
+                    new_chatbot.vector_db = master_chatbot.vector_db
+                    new_chatbot.embeddings = master_chatbot.embeddings
+                    
+                    # Try to load conversation history from database
+                    try:
+                        history_loaded = new_chatbot.load_conversation_history(session_id)
+                        if history_loaded:
+                            sessions[session_id] = {
+                                'chatbot': new_chatbot,
+                                'last_activity': time.time()
+                            }
+                        else:
+                            return jsonify({
+                                'success': False,
+                                'error': 'Session not found'
+                            }), 404
+                    except Exception as db_error:
+                        return jsonify({
+                            'success': False,
+                            'error': 'Database error loading session'
+                        }), 500
                 else:
-                    logger.warning(f"Session {session_id} not found in database")
                     return jsonify({
-                        "error": "Session not found",
-                        "message": "Please start a new session"
-                    }), 404
-            
-            # Get the chatbot instance for this session
-            session = sessions[session_id]
-            chatbot = session["chatbot"]
-            
-            # Update last activity time
-            session["last_active"] = str(datetime.now())
+                        'success': False,
+                        'error': 'System not ready'
+                    }), 503
+        
+        # Get the chatbot instance for this session
+        session = sessions[session_id]
+        chatbot = session["chatbot"]
+        
+        # Update last activity time
+        session["last_active"] = str(datetime.now())
         
         # Get query from request
         data = request.json
@@ -221,12 +212,10 @@ def chat(session_id):
             }), 400
         
         query = data['query']
-        logger.info(f"Processing query for session {session_id}: {query[:50]}...")
         
         # Process the query with better error handling
         try:
             response = chatbot.process_query(query)
-            logger.info(f"Query processed successfully for session {session_id}")
             
             return jsonify({
                 "session_id": session_id,

@@ -20,7 +20,7 @@ load_dotenv()
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.WARNING,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[logging.StreamHandler()]
 )
@@ -53,12 +53,9 @@ class ConversationLogger:
         try:
             # Use check_same_thread=False to allow using the connection across threads
             self.connection = sqlite3.connect(self.db_path, check_same_thread=False)
-            logger.info(f"Successfully connected to SQLite database at {self.db_path}")
-            
-            # Create tables if they don't exist
+              # Create tables if they don't exist
             self._create_tables()
         except Exception as e:
-            logger.error(f"Failed to connect to SQLite: {e}")
             raise
     
     def _create_tables(self) -> None:
@@ -96,7 +93,6 @@ class ConversationLogger:
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp)")
             
             self.connection.commit()
-            logger.info("Database tables created or already exist")
     
     def start_conversation(self, session_id: str) -> int:
         """
@@ -121,7 +117,6 @@ class ConversationLogger:
                 conversation_id = cursor.lastrowid
                 return conversation_id
         except Exception as e:
-            logger.error(f"Failed to start conversation: {e}")
             return -1
     
     def log_message(self, conversation_id: int, role: str, content: str) -> bool:
@@ -142,13 +137,11 @@ class ConversationLogger:
             with self.lock:  # Use lock for thread-safety
                 cursor = self.connection.cursor()
                 cursor.execute(
-                    "INSERT INTO messages (conversation_id, timestamp, role, content) VALUES (?, ?, ?, ?)",
-                    (conversation_id, timestamp, role, content)
+                    "INSERT INTO messages (conversation_id, timestamp, role, content) VALUES (?, ?, ?, ?)",                    (conversation_id, timestamp, role, content)
                 )
                 self.connection.commit()
                 return True
         except Exception as e:
-            logger.error(f"Failed to log message: {e}")
             return False
     
     def end_conversation(self, conversation_id: int) -> bool:
@@ -167,13 +160,11 @@ class ConversationLogger:
             with self.lock:  # Use lock for thread-safety
                 cursor = self.connection.cursor()
                 cursor.execute(
-                    "UPDATE conversations SET end_time = ? WHERE id = ?",
-                    (end_time, conversation_id)
+                    "UPDATE conversations SET end_time = ? WHERE id = ?",                    (end_time, conversation_id)
                 )
                 self.connection.commit()
                 return True
         except Exception as e:
-            logger.error(f"Failed to end conversation: {e}")
             return False
     
     def get_conversation_history(self, conversation_id: int) -> List[Dict[str, Any]]:
@@ -203,11 +194,9 @@ class ConversationLogger:
                         "timestamp": row[2],
                         "role": row[3],
                         "content": row[4]
-                    })
-                
+                    })                
                 return messages
         except Exception as e:
-            logger.error(f"Failed to get conversation history: {e}")
             return []
     
     def close(self) -> None:
@@ -215,4 +204,3 @@ class ConversationLogger:
         with self.lock:  # Use lock for thread-safety
             if self.connection:
                 self.connection.close()
-                logger.info("Database connection closed") 
